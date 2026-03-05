@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { kaggleSample } from "../data/kaggleSample.js";
 import { calculateHealthScore, getHealthRecommendation } from "../utils/healthScoring.js";
+import { API_ENDPOINTS, apiFetch } from "../config/api.js";
 
 const AppContext = createContext(null);
 
@@ -103,8 +104,8 @@ export const AppProvider = ({ children }) => {
   const openLogin = () => setIsLoginOpen(true);
   const closeLogin = () => setIsLoginOpen(false);
 
-  const register = async (name, email, password) => {
-    if (!name || !email || !password) {
+  const register = async (name, email, password, confirmPassword) => {
+    if (!name || !email || !password || !confirmPassword) {
       throw new Error("All fields are required");
     }
 
@@ -121,13 +122,17 @@ export const AppProvider = ({ children }) => {
       throw new Error("Password must be at least 8 characters");
     }
 
+    if (password !== confirmPassword) {
+      throw new Error("Passwords do not match");
+    }
+
     try {
-      const response = await fetch("http://localhost:4000/api/auth/register", {
+      const response = await fetch(API_ENDPOINTS.SIGNUP, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ name, email, password })
+        body: JSON.stringify({ name, email, password, confirmPassword })
       });
 
       const data = await response.json();
@@ -138,12 +143,15 @@ export const AppProvider = ({ children }) => {
 
       // Store token in localStorage
       localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
       setUser(data.user);
       setIsAuthenticated(true);
       setIsLoginOpen(false);
+      console.log('✅ Registration successful:', data.user.email);
     } catch (error) {
+      console.error('❌ Registration error:', error.message);
       if (error instanceof TypeError) {
-        throw new Error("Cannot connect to server. Make sure the backend is running on port 4000.");
+        throw new Error("Server offline. Please make sure backend is running on http://localhost:4000");
       }
       throw error;
     }
@@ -164,7 +172,8 @@ export const AppProvider = ({ children }) => {
     }
 
     try {
-      const response = await fetch("http://localhost:4000/api/auth/login", {
+      console.log('📤 Sending login request to backend:', { email, url: API_ENDPOINTS.LOGIN });
+      const response = await fetch(API_ENDPOINTS.LOGIN, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -172,20 +181,27 @@ export const AppProvider = ({ children }) => {
         body: JSON.stringify({ email, password })
       });
 
+      console.log('📥 Received response from backend:', { status: response.status, ok: response.ok });
       const data = await response.json();
 
       if (!response.ok) {
+        console.error('❌ Login failed:', data.message);
         throw new Error(data.message || "Login failed");
       }
 
       // Store token in localStorage
-      localStorage.setItem("token", data.token);
+      if (data.token) {
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("user", JSON.stringify(data.user));
+      }
       setUser(data.user);
       setIsAuthenticated(true);
       setIsLoginOpen(false);
+      console.log('✅ Login successful:', data.user.email);
     } catch (error) {
+      console.error('❌ Login error:', error.message);
       if (error instanceof TypeError) {
-        throw new Error("Cannot connect to server. Make sure the backend is running on port 4000.");
+        throw new Error("Server offline. Please make sure backend is running on http://localhost:4000");
       }
       throw error;
     }

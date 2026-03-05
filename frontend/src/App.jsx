@@ -13,6 +13,7 @@ import PublicLayout from "./components/PublicLayout.jsx";
 import AppLayout from "./components/AppLayout.jsx";
 import AuthModal from "./components/AuthModal.jsx";
 import OnboardingModal from "./components/OnboardingModal.jsx";
+import { ToastContainer } from "./components/Toast.jsx";
 import { useApp } from "./context/AppContext.jsx";
 
 const App = () => {
@@ -129,6 +130,7 @@ const App = () => {
       </Routes>
       <AuthModal />
       <OnboardingModal />
+      <ToastContainer />
     </>
   );
 };

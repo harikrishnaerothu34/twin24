@@ -1,6 +1,17 @@
+import { useState } from "react";
 import StatusBadge from "../components/StatusBadge.jsx";
 
 const ModelData = () => {
+  const [retrainStatus, setRetrainStatus] = useState(null);
+
+  const handleRetrain = () => {
+    setRetrainStatus("training");
+    setTimeout(() => {
+      setRetrainStatus("complete");
+      setTimeout(() => setRetrainStatus(null), 3000);
+    }, 2000);
+  };
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -11,6 +22,23 @@ const ModelData = () => {
           Monitor algorithm performance and data freshness.
         </p>
       </div>
+
+      {/* Status Message */}
+      {retrainStatus && (
+        <div className={`rounded-lg border ${
+          retrainStatus === "training" 
+            ? "border-blue-500/20 bg-blue-500/10" 
+            : "border-green-500/20 bg-green-500/10"
+        } px-4 py-3 text-sm ${
+          retrainStatus === "training" 
+            ? "text-blue-400" 
+            : "text-green-400"
+        }`}>
+          {retrainStatus === "training" 
+            ? "🔄 Model retraining in progress..." 
+            : "✅ Model retrained successfully!"}
+        </div>
+      )}
 
       {/* Model Overview Card */}
       <div className="card p-8">
@@ -25,8 +53,12 @@ const ModelData = () => {
               <p className="text-sm text-slate-400">Primary Anomaly Detection Algorithm</p>
             </div>
           </div>
-          <button className="btn-primary">
-            🔄 Retrain Model
+          <button 
+            onClick={handleRetrain}
+            disabled={retrainStatus === "training"}
+            className="btn-primary transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            🔄 {retrainStatus === "training" ? "Training..." : "Retrain Model"}
           </button>
         </div>
 

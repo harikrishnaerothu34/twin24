@@ -23,7 +23,7 @@ const Features = () => {
             body: "Share operational summaries that align operations and leadership."
           }
         ].map((item) => (
-          <div key={item.title} className="card p-6">
+          <div key={item.title} className="card p-6 transition-all hover:border-purple-500/30 hover:bg-white/[0.03] hover:shadow-lg hover:shadow-purple-500/10 cursor-pointer">
             <p className="text-lg font-semibold text-white">{item.title}</p>
             <p className="mt-3 text-sm text-slate-400">{item.body}</p>
           </div>

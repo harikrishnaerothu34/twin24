@@ -1,6 +1,9 @@
 import { Link } from "react-router-dom";
+import { useApp } from "../context/AppContext.jsx";
 
 const Landing = () => {
+  const { openLogin } = useApp();
+
   return (
     <div className="space-y-24 py-12">
       {/* Hero Section */}
@@ -26,10 +29,15 @@ const Landing = () => {
           </div>
 
           <div className="flex flex-wrap gap-4">
-            <Link to="/login" className="btn-primary">
+            <Link to="/login" className="btn-primary transition-all hover:scale-105">
               Start Monitoring →
             </Link>
-            <button className="btn-ghost">View Demo</button>
+            <button 
+              onClick={() => alert("📊 Demo features:\n✓ Real-time metrics\n✓ Anomaly detection\n✓ Health scoring\n✓ Alert system")}
+              className="btn-ghost transition-all hover:scale-105"
+            >
+              View Demo
+            </button>
           </div>
 
           <div className="flex items-center gap-6 border-t border-white/10 pt-6">

@@ -1,6 +1,6 @@
 const MetricCard = ({ title, value, unit, change, icon }) => {
   return (
-    <div className="card p-5">
+    <div className="card p-5 transition-all hover:border-blue-500/30 hover:bg-white/[0.03] hover:shadow-lg hover:shadow-blue-500/10 cursor-pointer">
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-2">

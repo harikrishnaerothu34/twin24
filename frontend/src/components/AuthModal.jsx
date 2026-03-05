@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useApp } from "../context/AppContext.jsx";
+import Toast from "./Toast.jsx";
 
 const AuthModal = () => {
   const { isLoginOpen, closeLogin, login, register } = useApp();
@@ -9,6 +10,7 @@ const AuthModal = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
   if (!isLoginOpen) {
@@ -92,13 +94,24 @@ const AuthModal = () => {
     }
 
     setIsLoading(true);
+    setError("");
     try {
+      console.log('📤 Submitting login form:', { email });
       await login(email, password);
       setEmail("");
       setPassword("");
-      setError("");
+      setSuccess("✅ Login successful! Redirecting to dashboard...");
+      console.log('✅ Login successful, redirecting to /system-monitor');
+      
+      // Show success message then redirect
+      setTimeout(() => {
+        setSuccess(null);
+        window.location.href = '/system-monitor';
+      }, 1500);
     } catch (err) {
-      setError(err.message || "Login failed. Please check your credentials.");
+      console.error('❌ Login submission error:', err.message);
+      const errorMsg = err.message || "Login failed. Please check your credentials.";
+      setError(errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -112,16 +125,27 @@ const AuthModal = () => {
     }
 
     setIsLoading(true);
+    setError("");
     try {
-      await register(name, email, password);
+      console.log('📤 Submitting registration form:', { email, name });
+      await register(name, email, password, confirmPassword);
       setName("");
       setEmail("");
       setPassword("");
       setConfirmPassword("");
-      setError("");
-      setIsRegisterMode(false);
+      setSuccess("✅ Account created successfully! Redirecting to dashboard...");
+      console.log('✅ Registration successful, redirecting to /system-monitor');
+      
+      // Show success message then redirect
+      setTimeout(() => {
+        setSuccess(null);
+        setIsRegisterMode(false);
+        window.location.href = '/system-monitor';
+      }, 1500);
     } catch (err) {
-      setError(err.message || "Registration failed. Please try again.");
+      console.error('❌ Registration submission error:', err.message);
+      const errorMsg = err.message || "Registration failed. Please try again.";
+      setError(errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -221,6 +245,11 @@ const AuthModal = () => {
             {isLoading ? (isRegisterMode ? "Creating Account..." : "Signing in...") : (isRegisterMode ? "Create Account" : "Sign In")}
           </button>
         </form>
+        {success && (
+          <div className="mt-4 rounded bg-green-500/10 px-3 py-3 text-sm text-green-400 border border-green-500/30 text-center animate-in fade-in">
+            {success}
+          </div>
+        )}
         <div className="mt-4 text-center text-xs text-slate-500">
           {isRegisterMode ? (
             <>

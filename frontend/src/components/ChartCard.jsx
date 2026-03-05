@@ -1,6 +1,6 @@
 const ChartCard = ({ title, children, summary, icon }) => {
   return (
-    <div className="card p-6">
+    <div className="card p-6 transition-all hover:border-cyan-500/30 hover:bg-white/[0.03] hover:shadow-lg hover:shadow-cyan-500/10 cursor-pointer">
       <div className="mb-5 flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2">

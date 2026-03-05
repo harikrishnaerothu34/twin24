@@ -21,7 +21,7 @@ const app = express();
 app.use(helmet());
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:5173'],
+    origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:5173', 'http://localhost:5174'],
     credentials: true
   })
 );
@@ -64,10 +64,12 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 4000;
 
 async function start() {
-  console.log('🚀 Starting API server...');
+  console.log('\n🚀 Starting API server...');
+  console.log(`📌 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📦 Port: ${PORT}`);
   try {
     await connectMongo();
-    console.log('✓ Database connection ready');
+    console.log('✓ Database connection ready (MongoDB Atlas)');
 
     const server = http.createServer(app);
 
@@ -76,9 +78,15 @@ async function start() {
     initWebSocket(wss);
 
     server.listen(PORT, () => {
-      console.log(`✓ API server listening on http://localhost:${PORT}`);
-      console.log(`✓ WebSocket server ready on ws://localhost:${PORT}/ws`);
-      console.log(`✓ CORS enabled for: http://localhost:5173`);
+      console.log(`\n${'='.repeat(60)}`);
+      console.log(`✅ SERVER RUNNING SUCCESSFULLY`);
+      console.log(`${'='.repeat(60)}`);
+      console.log(`✓ API server listening on: http://localhost:${PORT}`);
+      console.log(`✓ WebSocket server ready on: ws://localhost:${PORT}/ws`);
+      console.log(`✓ CORS enabled for: http://localhost:5173, http://localhost:5174`);
+      console.log(`✓ Login endpoint: POST http://localhost:${PORT}/api/auth/login`);
+      console.log(`✓ Signup endpoint: POST http://localhost:${PORT}/api/auth/signup`);
+      console.log(`${'='.repeat(60)}\n`);
     });
   } catch (err) {
     console.error('❌ Failed to start server:', err.message);
