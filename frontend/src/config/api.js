@@ -9,6 +9,7 @@ export const API_ENDPOINTS = {
   // Authentication
   LOGIN: `${API_BASE_URL}/api/auth/login`,
   SIGNUP: `${API_BASE_URL}/api/auth/signup`,
+  ME: `${API_BASE_URL}/api/auth/me`,
   
   // Devices
   DEVICES: `${API_BASE_URL}/api/devices`,

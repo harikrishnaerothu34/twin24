@@ -209,6 +209,7 @@ export const AppProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("user");
     setIsAuthenticated(false);
     setUser(initialUser);
     setHasOnboarded(false);
@@ -241,9 +242,35 @@ export const AppProvider = ({ children }) => {
   // Check for existing token on component mount
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (token) {
-      setIsAuthenticated(true);
+    const cachedUser = localStorage.getItem("user");
+
+    if (!token) {
+      return;
     }
+
+    if (cachedUser) {
+      try {
+        setUser(JSON.parse(cachedUser));
+      } catch {
+        localStorage.removeItem("user");
+      }
+    }
+
+    const restoreSession = async () => {
+      try {
+        const { data } = await apiFetch(API_ENDPOINTS.ME);
+        setUser(data.user);
+        localStorage.setItem("user", JSON.stringify(data.user));
+        setIsAuthenticated(true);
+      } catch {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        setIsAuthenticated(false);
+        setUser(initialUser);
+      }
+    };
+
+    restoreSession();
   }, []);
 
   const completeOnboarding = (config) => {

@@ -1,18 +1,41 @@
 import express from 'express';
 import Joi from 'joi';
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
 import User from '../models/User.js';
 import mongoose from 'mongoose';
+import { authRequired } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
-
-// In-memory storage for mock mode
-const mockUsers = new Map();
 
 // Check if MongoDB is connected
 const isMongoConnected = () => {
   return mongoose.connection.readyState === 1;
+};
+
+const toSafeUser = (user) => ({
+  id: user._id,
+  name: user.name,
+  email: user.email,
+  role: user.role
+});
+
+const signAccessToken = (user) => {
+  return jwt.sign(
+    { sub: user._id.toString(), role: user.role },
+    process.env.JWT_SECRET || 'dev-secret',
+    { expiresIn: process.env.JWT_EXPIRES_IN || '12h' }
+  );
+};
+
+const requireMongo = (res) => {
+  if (isMongoConnected()) {
+    return true;
+  }
+
+  res.status(503).json({
+    message: 'Database unavailable. Please try again shortly.'
+  });
+  return false;
 };
 
 const registerSchema = Joi.object({
@@ -42,39 +65,12 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: error.message });
     }
 
-    // Mock mode if MongoDB not connected
-    if (!isMongoConnected()) {
-      const existingMock = Array.from(mockUsers.values()).find(u => u.email === value.email);
-      if (existingMock) {
-        return res.status(409).json({ message: 'Email already registered' });
-      }
-
-      const passwordHash = await User.hashPassword(value.password);
-      const userId = `mock-${Date.now()}`;
-      const mockUser = {
-        _id: userId,
-        name: value.name,
-        email: value.email,
-        passwordHash,
-        role: 'user'
-      };
-
-      mockUsers.set(userId, mockUser);
-
-      const token = jwt.sign(
-        { sub: userId, role: mockUser.role },
-        process.env.JWT_SECRET || 'dev-secret',
-        { expiresIn: '12h' }
-      );
-
-      return res.status(201).json({
-        token,
-        user: { id: userId, name: mockUser.name, email: mockUser.email, role: mockUser.role }
-      });
+    if (!requireMongo(res)) {
+      return;
     }
 
-    // Database mode
-    const existing = await User.findOne({ email: value.email });
+    const normalizedEmail = value.email.trim().toLowerCase();
+    const existing = await User.findOne({ email: normalizedEmail });
     if (existing) {
       return res.status(409).json({ message: 'Email already registered' });
     }
@@ -82,94 +78,52 @@ router.post('/register', async (req, res) => {
     const passwordHash = await User.hashPassword(value.password);
     const user = await User.create({
       name: value.name,
-      email: value.email,
+      email: normalizedEmail,
       passwordHash
     });
 
-    const token = jwt.sign(
-      { sub: user._id.toString(), role: user.role },
-      process.env.JWT_SECRET || 'dev-secret',
-      { expiresIn: '12h' }
-    );
+    const token = signAccessToken(user);
 
     res.status(201).json({
       token,
-      user: { id: user._id, name: user.name, email: user.email, role: user.role }
+      user: toSafeUser(user)
     });
   } catch (err) {
-    console.error('Register error', err);
+    console.error('Register error', err.message);
     res.status(500).json({ message: 'Failed to register' });
   }
 });
 
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
-    console.log('\n📧 Login request received:', { email, timestamp: new Date().toISOString() });
-    
     const { error, value } = loginSchema.validate(req.body);
     if (error) {
-      console.log('❌ Validation error:', error.message);
       return res.status(400).json({ message: error.message });
     }
 
-    // Mock mode if MongoDB not connected
-    if (!isMongoConnected()) {
-      console.log('⚠️  MongoDB not connected - using mock mode');
-      const mockUser = Array.from(mockUsers.values()).find(u => u.email === value.email);
-      if (!mockUser) {
-        console.log('❌ User not found:', value.email);
-        return res.status(401).json({ message: 'Invalid credentials' });
-      }
-
-      const ok = await bcrypt.compare(value.password, mockUser.passwordHash);
-      if (!ok) {
-        console.log('❌ Invalid password for:', value.email);
-        return res.status(401).json({ message: 'Invalid credentials' });
-      }
-
-      const token = jwt.sign(
-        { sub: mockUser._id, role: mockUser.role },
-        process.env.JWT_SECRET || 'dev-secret',
-        { expiresIn: '12h' }
-      );
-
-      console.log('✅ Login successful (mock mode):', { name: mockUser.name, email: mockUser.email });
-      return res.json({
-        success: true,
-        token,
-        user: { id: mockUser._id, name: mockUser.name, email: mockUser.email, role: mockUser.role }
-      });
+    if (!requireMongo(res)) {
+      return;
     }
 
-    // Database mode
-    console.log('🗄️  Querying MongoDB for user:', value.email);
-    const user = await User.findOne({ email: value.email });
+    const normalizedEmail = value.email.trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
-      console.log('❌ User not found in database:', value.email);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     const ok = await user.comparePassword(value.password);
     if (!ok) {
-      console.log('❌ Invalid password for user:', value.email);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    const token = jwt.sign(
-      { sub: user._id.toString(), role: user.role },
-      process.env.JWT_SECRET || 'dev-secret',
-      { expiresIn: '12h' }
-    );
-
-    console.log('✅ Login successful (database mode):', { id: user._id, name: user.name, email: user.email });
+    const token = signAccessToken(user);
     res.json({
       success: true,
       token,
-      user: { id: user._id, name: user.name, email: user.email, role: user.role }
+      user: toSafeUser(user)
     });
   } catch (err) {
-    console.error('❌ Login error:', err.message);
+    console.error('Login error:', err.message);
     res.status(500).json({ message: 'Server error during login' });
   }
 });
@@ -182,40 +136,12 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ message: error.message });
     }
 
-    // Mock mode if MongoDB not connected
-    if (!isMongoConnected()) {
-      const existingMock = Array.from(mockUsers.values()).find(u => u.email === value.email);
-      if (existingMock) {
-        return res.status(409).json({ message: 'Email already registered' });
-      }
-
-      const passwordHash = await User.hashPassword(value.password);
-      const userId = `mock-${Date.now()}`;
-      const mockUser = {
-        _id: userId,
-        name: value.name,
-        email: value.email,
-        passwordHash,
-        role: 'user'
-      };
-
-      mockUsers.set(userId, mockUser);
-
-      const token = jwt.sign(
-        { sub: userId, role: mockUser.role },
-        process.env.JWT_SECRET || 'dev-secret',
-        { expiresIn: '12h' }
-      );
-
-      return res.status(201).json({
-        message: 'User registered successfully',
-        token,
-        user: { id: userId, name: mockUser.name, email: mockUser.email, role: mockUser.role }
-      });
+    if (!requireMongo(res)) {
+      return;
     }
 
-    // Database mode - MongoDB Atlas
-    const existing = await User.findOne({ email: value.email });
+    const normalizedEmail = value.email.trim().toLowerCase();
+    const existing = await User.findOne({ email: normalizedEmail });
     if (existing) {
       return res.status(409).json({ message: 'Email already registered' });
     }
@@ -223,24 +149,38 @@ router.post('/signup', async (req, res) => {
     const passwordHash = await User.hashPassword(value.password);
     const user = await User.create({
       name: value.name,
-      email: value.email,
+      email: normalizedEmail,
       passwordHash
     });
 
-    const token = jwt.sign(
-      { sub: user._id.toString(), role: user.role },
-      process.env.JWT_SECRET || 'dev-secret',
-      { expiresIn: '12h' }
-    );
+    const token = signAccessToken(user);
 
     res.status(201).json({
       message: 'User registered successfully',
       token,
-      user: { id: user._id, name: user.name, email: user.email, role: user.role }
+      user: toSafeUser(user)
     });
   } catch (err) {
-    console.error('Signup error', err);
+    console.error('Signup error', err.message);
     res.status(500).json({ message: 'Failed to register user' });
+  }
+});
+
+router.get('/me', authRequired, async (req, res) => {
+  try {
+    if (!requireMongo(res)) {
+      return;
+    }
+
+    const user = await User.findById(req.user.id).select('_id name email role');
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+
+    res.json({ user: toSafeUser(user) });
+  } catch (err) {
+    console.error('Session lookup error:', err.message);
+    res.status(500).json({ message: 'Failed to load session' });
   }
 });
 
